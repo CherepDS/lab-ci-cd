@@ -19,11 +19,11 @@ jobs:
           htmlhint index.html
 
       - name: Build Docker image
-        run: docker build -t my-site:ci .
+        run: docker build -t lab-ci-cd .
 
       - name: Smoke test container
         run: |
-          docker run -d --name test-site -p 8080:80 my-site:ci
+          docker run -d --name test-site -p 8080:80 lab-ci-cd
           for i in $(seq 1 10); do
             if curl -sf http://localhost:8080 > /tmp/page.html; then break; fi
             sleep 1
