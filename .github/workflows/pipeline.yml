@@ -1,4 +1,3 @@
-
 name: Pipeline
 
 on:
@@ -31,7 +30,8 @@ jobs:
         run: |
           docker run -d --name test-site -p 8080:80 lab-test
           sleep 3
-          curl -fsS http://localhost:8080 | grep -Fq "CherepDS"
+          curl -fsS http://localhost:8080 -o page.html
+          grep -Fq "cherepDS" page.html
           echo "OK"
 
   release:
