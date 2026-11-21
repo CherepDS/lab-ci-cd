@@ -31,7 +31,7 @@ jobs:
         run: |
           docker run -d --name test-site -p 8080:80 lab-test
           sleep 3
-          curl -fsS http://localhost:8080 | grep -Fq "CheRepDS"
+          curl -fsS http://localhost:8080 | grep -Fq "CherepDS"
           echo "OK"
 
   release:
