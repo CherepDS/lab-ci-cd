@@ -2,47 +2,58 @@ name: Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
-
-permissions:
-  contents: read
-  packages: write
+    branches: [ main ]
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-latest #на какой из виртуалок самого!!!! github выполнять (так называеый runner - Settings -> Actions -> Runners)
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4 #встроенная команда shell аля git clone + git checkout (девопсы кастомят) (тут uses можно указывать run как в докере ниже)
 
-      - name: Validate HTML
-        run: npx --yes html-validate index.html
+      - name: HTML lint # скачивние html линтера - статический анализатор кода
+        run: |
+          npm install -g htmlhint 
+          htmlhint index.html
 
       - name: Build Docker image
-        run: docker build -t lab-test .
+        run: docker build -t my-site:ci .
 
       - name: Smoke test container
         run: |
-          docker run -d --name test-site -p 8080:80 lab-test
-          sleep 3
-          curl -fsS http://localhost:8080 | grep -q "ТВОЁ ФИО"
+          docker run -d --name test-site -p 8080:80 my-site:ci
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:8080 > /tmp/page.html; then break; fi
+            sleep 1
+          done
+          grep -q "Привет из Docker-контейнера" /tmp/page.html
           echo "OK"
 
-  release:
-    needs: ci
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+      - name: Cleanup
+        if: always()
+        run: docker rm -f test-site || true
 
+  release:
+    needs: ci #чтобы образ без прорерок не попал в packages
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions: #разрешения для токена вашего репо для допуска на виртуалку
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Log in to GHCR #GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        run: |
-          IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:latest
-          docker build -t "$IMAGE" .
-          docker push "$IMAGE"
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ghcr.io/${{ github.repository }}:latest
